@@ -1,0 +1,197 @@
+---  
+title: "<B><I>Wine Reviews</I></B>"
+subtitle: "Trabalho Estatística Descritiva"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+    number_sections: true
+---  
+
+<B>Autores: </B> Davi Augusto, Felipe Hedlund e João Arend.
+<hr>
+
+```{r setup, include=FALSE}
+
+#!!!!!!!!!!!!!! cores para os gráficos: https://creativebooster.net/blogs/colors/shades-of-wine-color
+
+options(width = 80)
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 5,
+  fig.height = 4,
+  fig.align = "center",
+  fig.retina = 2
+)
+
+```
+
+```{r settings, include=FALSE}
+
+## Installing Packages
+ # install.packages('readr')
+ # install.packages('knitr')
+ # install.packages('dplyr')
+ # install.packages('labelled')
+ # install.packages('ggplot2')
+ # install.packages("summarytools")
+ # install.packages("tm")
+ # install.packages("SnowballC")
+ # install.packages("wordcloud")
+
+## Calling Libraries 
+library(readr)
+library(knitr)
+library(dplyr)
+library(labelled)
+library(ggplot2)
+library(summarytools)
+library(tm)
+library(SnowballC)
+library(wordcloud)
+
+
+# Lendo a base de dados
+wine_data <- read_csv("winemag-data_first150k.csv")
+
+wine_labels <- colnames(wine_data)
+
+# Adicionando labels as colunas
+rotulos <- c("Id", "País", "Descrição", "Designação", "Pontos", "Preço", "Província", "Região 1", "Região 2", "Variedade", "Vinícola")
+
+wine_data <- set_variable_labels(wine_data,
+                                 .labels = rotulos)
+
+# Tabela auxiliar sem os NA's em país e preço
+wine_data_wout_na <- wine_data[!is.na(wine_data$country) &
+                          !is.na(wine_data$price), ]
+
+wine_data_wout_na <- wine_data_wout_na %>%
+                     mutate(description = stringr::str_trunc(description, width = 25)) %>% 
+                     arrange(desc(price))  
+
+## Contar NA's no dataset
+quantidade_na_por_coluna <- apply(wine_data_wout_na, 2, function(x) sum(is.na(x)))
+quantidade_na_por_coluna
+
+
+### FAZER ALGO COM ISSO... (não tive ideias ainda desclp)
+#Tabela resumida por país
+wine_countries <- wine_data_wout_na %>%
+                  group_by(country) %>%
+                  summarize(av_price  = mean(price), 
+                            av_points = mean(points), 
+                            n_records = n())
+
+#Tabela resumida por província
+wine_provinces <- wine_data_wout_na %>%
+                  group_by(province) %>%
+                  summarize(av_price  = mean(price), 
+                            av_points = mean(points), 
+                            n_records = n(), 
+                            country   = unique(country))
+
+
+```
+
+# Sobre a base de dados
+
+A base de dados escolhida foi construída via <i>scraping</i> do site <a href="https://www.wineenthusiast.com/">Wine Enthusiast</a> e disponibilizada no site Kaggle.
+
+ADICIONAR MAIS TEXTO AQUI. 
+
+## Resumo das Variáveis:
+
+<ul>
+  <li>País: o país de origem do vinho</li>
+  <li>Descrição: algumas frases de um sommelier descrevendo o sabor, cheiro, aparência, toque do vinho, etc.</li>
+  <li>Designação: vinhedo da vínicola onde a uva foi colhida</li>
+  <li>Pontos: o número de pontos que a WineEnthusiast avaliou o vinho em uma escala de 1 a 100 (embora digam que só publicam avaliações de vinhos com pontuação >=80)</li>
+  <li>Preço: o preço do vinho(em dólares $)</li>
+  <li>Província: a província ou estado de origem do vinho</li>
+  <li>Região 1 e Região 2: maoir detalhamento e especificidade sobre a área de plantação</li>
+  <li>Variedade: o tipo de uva usada para fazer o vinho</li>
+  <li>Vinícola: vinícola onde o vinho foi feito</li>
+</ul>
+
+<BR> 
+
+
+```{r, include = TRUE}
+
+knitr::kable(
+  head(wine_data_wout_na, 5),
+  col.names = rotulos, 
+  align = c("c", "c","l","l","c","c","l","l","l","l","l")
+)
+```
+
+# Including Plots
+```{r, include = TRUE}
+wine_plot_price_points <- ggplot(wine_data_wout_na) +
+                          aes(points, price) +
+                          geom_point(color = '#722F37') + 
+                          theme_minimal() + 
+                          labs(x = "Pontos",
+                               y = "Preço ($)") + 
+                          scale_x_continuous(breaks = seq(80, 100, 2)) + 
+                          scale_y_continuous(breaks = seq(0, 3000, 250))
+wine_plot_price_points
+```
+
+
+```{r, include=TRUE}
+wine_plot_hist_points <- ggplot(wine_data_wout_na, 
+                                aes(x = points)) +
+                        geom_histogram(binwidth = 1, fill = "#722F37", color = "#800020") +  
+                        theme_minimal() + 
+                        labs(x = "Pontos",
+                             y = "Número de registros") + 
+                        scale_x_continuous(breaks = seq(80, 100, 2)) + 
+                        scale_y_continuous(breaks = seq(0, 20000, 3000)) 
+wine_plot_hist_points
+
+```
+
+```{r, include=TRUE}
+
+summary(wine_data_wout_na$price)
+
+
+
+
+## Verificar se tem como melhorar se não descartar
+# wine_plot_hist_price  <- ggplot(wine_data_wout_na, 
+#                                 aes(x = price)) +
+#                         geom_histogram(binwidth = 1, fill = "#FFBF00", color = '#FFD700') +  
+#                         theme_minimal() + 
+#                         labs(x = "Preço",
+#                              y = "Número de registros") + 
+#                         scale_x_continuous(breaks = seq(0, 3000, 250)) + 
+#                         scale_y_continuous(breaks = seq(0, 20000, 3000)) 
+# wine_plot_hist_price
+
+```
+
+```{r, include=TRUE}
+
+wine_best_provinces <- head(wine_provinces %>% arrange(desc(av_points))
+                                           %>% filter(n_records > 10), 10)
+
+wine_provinces_desc <- wine_data %>%
+                       filter(wine_data$province %in% wine_best_provinces$province)
+ 
+wine_desc_cloud <- Corpus(VectorSource(wine_provinces_desc$description))
+wine_desc_cloud <- tm_map(wine_desc_cloud, PlainTextDocument)
+wine_desc_cloud <- tm_map(wine_desc_cloud, content_transformer(tolower))
+wine_desc_cloud <- tm_map(wine_desc_cloud, removePunctuation)
+wine_desc_cloud <- tm_map(wine_desc_cloud, removeNumbers)
+wine_desc_cloud <- tm_map(wine_desc_cloud, removeWords, stopwords('en'))
+wine_desc_cloud <- tm_map(wine_desc_cloud, stemDocument)
+wine_desc_cloud <- tm_map(wine_desc_cloud, stripWhitespace)
+
+wordcloud(wine_desc_cloud, max.words = 50, scale=c(3,0.5), colors=brewer.pal(8, "Dark2"))
+ 
+``` 
